@@ -1,0 +1,83 @@
+Regras do App de Venda de Esfirras
+
+Visão geral:
+- App mobile-first desenvolvido em React Native (Expo, managed workflow).
+- Público: alunos (clientes) e funcionários (gestão/atendimento).
+- Objetivo: vender/esquentar esfirras, permitir reservas/compras, e controlar estoque.
+
+Plataforma e stack técnica:
+- Frontend: React Native com Expo.
+- Navegação: React Navigation (abas + stack).
+- Backend/DB: Firebase (Authentication + Firestore). Opcional: Cloud Functions para regras atômicas.
+- Notificações: Firebase Cloud Messaging (para aluno/funcionário).
+- Realtime: listeners do Firestore para atualizar pedidos e estoque em tempo real.
+
+Usuários e permissões:
+- Aluno/Cliente:
+	- Cadastro/login via Firebase Auth (e-mail/senha; possibilitar Google/SSO depois).
+	- Visualiza catálogo, faz pedido ou reserva, acompanha status e histórico.
+- Funcionário:
+	- Área privada para visualizar pedidos pendentes, aceitar/rejeitar, e atualizar/gerenciar estoque.
+	- Permissões: somente funcionários aprovam pedidos e fazem baixa de estoque.
+
+Fluxos principais:
+- Compra/Reserva (Aluno):
+	1. Usuário faz login.
+	2. Seleciona esfirras e adiciona ao carrinho (ou faz uma reserva direta).
+	3. Envia pedido/reserva (estado: PENDENTE).
+	4. Funcionário vê pedido pendente e decide ACEITAR ou REJEITAR.
+	5. Ao ACEITAR: sistema dá baixa no estoque (quantidade -= quantidade do pedido) e altera status para CONFIRMADO.
+	6. Ao REJEITAR: status atualizado para REJEITADO; estoque não é alterado.
+	7. Aluno recebe notificação e pode ver o histórico.
+
+- Reserva vs Compra:
+	- Reserva: marca o pedido como reservado; a baixa efetiva no estoque pode ocorrer somente após aceitação do funcionário.
+	- Implementação: no momento do pedido, marcar itens reservados (opcional) ou somente decrementar stock on accept via transaction.
+
+Regras de consistência de estoque:
+- Utilizar transações/Cloud Functions para decrementar o estoque de forma atômica ao aceitar um pedido (evitar oversell).
+- Modelo: Firestore com campo `quantityAvailable` por produto; operações de decremento devem validar quantidade suficiente.
+
+Modelo de dados (Firestore - sugestão):
+- collections:
+	- `products` (documentos: id, name, price, description, imageUrl, quantityAvailable, category)
+	- `users` (id, name, email, role: 'student'|'employee')
+	- `orders` (id, userId, items: [{productId, qty, price}], total, status: 'PENDING'|'CONFIRMED'|'REJECTED'|'CANCELLED', createdAt, updatedAt)
+	- `reservations` (opcional: link para orders ou flag em orders)
+	- `notifications` (opcional: para histórico de notificações)
+
+Abas e telas (mínimo sugerido — >3 abas):
+- Abas principais (bottom tabs):
+	1. `Home` / Catálogo — lista de produtos, busca, filtros.
+	2. `Carrinho` / Reserva — revisar itens, enviar pedido.
+	3. `Pedidos` / Histórico — acompanhar status e histórico de compras/reservas.
+	4. `Atendimento` / Painel do Funcionário — (visível só para funcionários) pedidos pendentes, aceitar/rejeitar, gerenciar estoque.
+	5. `Perfil` / Configurações — logout, dados do usuário.
+
+- Telas adicionais:
+	- Login / Cadastro
+	- Detalhe do produto
+	- Modal de confirmação de pedido
+	- Tela de gerenciamento de estoque (editar quantidades, adicionar produto)
+
+Requisitos UX/UI (mobile first):
+- Layout simples, botões grandes e legíveis, fluxo de compra em poucos passos.
+- Feedback claro sobre status do pedido (badges, toasts, notificações push).
+- Acessibilidade básica: contrastes, labels e suporte a leitores.
+
+Integração Firebase e segurança:
+- Regras do Firestore:
+	- Só funcionários podem alterar `products.quantityAvailable` e aprovar pedidos.
+	- Usuários só podem criar orders para si mesmos e ler seus próprios pedidos.
+	- Recomenda-se usar Cloud Functions para lógica sensível (ex.: decrementar estoque e validar disponibilidade).
+
+Considerações operacionais:
+- Logs e auditoria: registrar quem aceitou/rejeitou pedidos.
+- Modo offline: considerar cache local para catálogo; sincronizar pedidos quando online.
+
+Próximos passos sugeridos (opções):
+1. Gerar scaffold Expo com: `expo init` + instalar `react-navigation`, `firebase` e libs UI.
+2. Definir rotas iniciais e componentes: `Home`, `Cart`, `Orders`, `EmployeePanel`, `Profile`.
+3. Criar regras básicas do Firestore e configurar Firebase Auth.
+
+Observação: este arquivo contém as regras e decisões iniciais. Diga se quer que eu gere o scaffold do projeto Expo e os arquivos iniciais.
